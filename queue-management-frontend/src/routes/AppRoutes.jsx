@@ -3,8 +3,10 @@ import { useAuth } from '../hooks/useAuth'
 import HomePage from '../pages/user/HomePage'
 import CategoryListPage from '../pages/user/CategoryListPage'
 import PlaceDetailPage from '../pages/user/PlaceDetailPage'
+import TokenPage from '../pages/user/TokenPage'
 import LiveQueuePage from '../pages/user/LiveQueuePage'
 import BookingSuccessPage from '../pages/user/BookingSuccessPage'
+import MyBookingsPage from '../pages/user/MyBookingsPage'
 import LoginPage from '../pages/auth/LoginPage'
 import RegisterPage from '../pages/auth/RegisterPage'
 
@@ -22,8 +24,10 @@ const AppRoutes = () => {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/categories/:type" element={<CategoryListPage />} />
       <Route path="/place/:id" element={<PlaceDetailPage />} />
+      <Route path="/token/:tokenId" element={<PrivateRoute><TokenPage /></PrivateRoute>} />
       <Route path="/queue/:placeId/live" element={<LiveQueuePage />} />
       <Route path="/booking/success/:bookingId" element={<BookingSuccessPage />} />
+      <Route path="/my-bookings" element={<PrivateRoute><MyBookingsPage /></PrivateRoute>} />
     </Routes>
   )
 }

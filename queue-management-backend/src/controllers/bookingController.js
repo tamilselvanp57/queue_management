@@ -47,8 +47,21 @@ export const cancelBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
     if (!booking) return res.status(404).json({ message: 'Booking not found' })
+    if (booking.user.toString() !== req.user.id) return res.status(403).json({ message: 'Unauthorized' })
+    if (booking.status !== 'active') return res.status(400).json({ message: 'Booking already cancelled or completed' })
+    
     booking.status = 'cancelled'
     await booking.save()
+
+    const place = await Place.findById(booking.place)
+    if (place && place.queueLength > 0) {
+      place.queueLength -= 1
+      await place.save()
+      req.io.to(`place-${booking.place}`).emit('queue-update', {
+        placeId: booking.place, currentToken: place.currentToken, queueLength: place.queueLength
+      })
+    }
+
     res.json({ message: 'Booking cancelled' })
   } catch (error) {
     res.status(500).json({ message: error.message })
