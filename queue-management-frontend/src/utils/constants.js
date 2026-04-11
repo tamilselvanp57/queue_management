@@ -25,13 +25,26 @@ export const CATEGORIES = [
   }
 ]
 
-export const REGIONS = [
-  'Downtown',
-  'Uptown',
-  'East Side',
-  'West Side',
-  'Suburbs',
-  'City Center'
+export const INDIAN_REGIONS = [
+  { id: 'north', name: 'North India', states: ['Delhi', 'Punjab', 'Haryana', 'Uttar Pradesh', 'Uttarakhand', 'Himachal Pradesh', 'Jammu & Kashmir'] },
+  { id: 'south', name: 'South India', states: ['Karnataka', 'Tamil Nadu', 'Kerala', 'Andhra Pradesh', 'Telangana'] },
+  { id: 'east', name: 'East India', states: ['West Bengal', 'Odisha', 'Bihar', 'Jharkhand'] },
+  { id: 'west', name: 'West India', states: ['Maharashtra', 'Gujarat', 'Rajasthan', 'Goa'] },
+  { id: 'central', name: 'Central India', states: ['Madhya Pradesh', 'Chhattisgarh'] },
+  { id: 'northeast', name: 'Northeast India', states: ['Assam', 'Meghalaya', 'Manipur', 'Tripura', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'] }
+]
+
+export const MAJOR_CITIES = [
+  { name: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777, region: 'west' },
+  { name: 'Delhi', state: 'Delhi', lat: 28.7041, lng: 77.1025, region: 'north' },
+  { name: 'Bangalore', state: 'Karnataka', lat: 12.9716, lng: 77.5946, region: 'south' },
+  { name: 'Hyderabad', state: 'Telangana', lat: 17.3850, lng: 78.4867, region: 'south' },
+  { name: 'Chennai', state: 'Tamil Nadu', lat: 13.0827, lng: 80.2707, region: 'south' },
+  { name: 'Kolkata', state: 'West Bengal', lat: 22.5726, lng: 88.3639, region: 'east' },
+  { name: 'Pune', state: 'Maharashtra', lat: 18.5204, lng: 73.8567, region: 'west' },
+  { name: 'Ahmedabad', state: 'Gujarat', lat: 23.0225, lng: 72.5714, region: 'west' },
+  { name: 'Jaipur', state: 'Rajasthan', lat: 26.9124, lng: 75.7873, region: 'west' },
+  { name: 'Lucknow', state: 'Uttar Pradesh', lat: 26.8467, lng: 80.9462, region: 'north' }
 ]
 
 export const BUSY_STATUS = {

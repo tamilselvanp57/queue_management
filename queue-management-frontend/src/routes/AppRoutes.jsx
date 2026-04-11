@@ -9,17 +9,26 @@ import BookingSuccessPage from '../pages/user/BookingSuccessPage'
 import MyBookingsPage from '../pages/user/MyBookingsPage'
 import LoginPage from '../pages/auth/LoginPage'
 import RegisterPage from '../pages/auth/RegisterPage'
+import RoleSelectionPage from '../pages/auth/RoleSelectionPage'
+import AdminDashboard from '../pages/admin/AdminDashboard'
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth()
   if (loading) return <div>Loading...</div>
-  return user ? children : <Navigate to="/login" />
+  return user ? children : <Navigate to="/login?role=user" />
+}
+
+const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth()
+  if (loading) return <div>Loading...</div>
+  return user && user.role === 'admin' ? children : <Navigate to="/login?role=admin" />
 }
 
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<RoleSelectionPage />} />
+      <Route path="/home" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/categories/:type" element={<CategoryListPage />} />
@@ -28,6 +37,7 @@ const AppRoutes = () => {
       <Route path="/queue/:placeId/live" element={<LiveQueuePage />} />
       <Route path="/booking/success/:bookingId" element={<BookingSuccessPage />} />
       <Route path="/my-bookings" element={<PrivateRoute><MyBookingsPage /></PrivateRoute>} />
+      <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
     </Routes>
   )
 }

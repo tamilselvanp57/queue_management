@@ -1,14 +1,30 @@
+import { useState } from 'react'
 import Header from '../../components/common/Header'
 import HeroSection from '../../components/home/HeroSection'
 import CategoryCard from '../../components/home/CategoryCard'
+import RegionSelector from '../../components/location/RegionSelector'
+import LiveLocationTracker from '../../components/location/LiveLocationTracker'
 import { CATEGORIES } from '../../utils/constants'
 
 const HomePage = () => {
+  const [selectedRegion, setSelectedRegion] = useState('')
+  const [selectedCity, setSelectedCity] = useState('')
+  const [liveLocation, setLiveLocation] = useState(null)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <HeroSection />
+        
+        <LiveLocationTracker onLocationUpdate={setLiveLocation} />
+        
+        <RegionSelector
+          selectedRegion={selectedRegion}
+          selectedCity={selectedCity}
+          onRegionChange={setSelectedRegion}
+          onCityChange={setSelectedCity}
+        />
         
         <section className="py-12">
           <h2 className="text-3xl font-bold text-center mb-12">Choose a Category</h2>

@@ -2,19 +2,21 @@ import Place from '../models/Place.js'
 
 export const getPlaces = async (req, res) => {
   try {
-    const { category, region, latitude, longitude } = req.query
+    const { category, region, city, latitude, longitude, maxDistance } = req.query
     let query = { isActive: true }
     if (category) query.category = category
     if (region) query.region = region
+    if (city) query.city = city
 
     let places
     if (latitude && longitude) {
+      const distance = maxDistance ? parseInt(maxDistance) * 1000 : 10000
       places = await Place.find({
         ...query,
         location: {
           $near: {
             $geometry: { type: 'Point', coordinates: [parseFloat(longitude), parseFloat(latitude)] },
-            $maxDistance: 10000
+            $maxDistance: distance
           }
         }
       })

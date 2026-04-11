@@ -8,18 +8,28 @@ export const QueueProvider = ({ children }) => {
   const [socket, setSocket] = useState(null)
 
   useEffect(() => {
-    const socketInstance = initSocket()
-    setSocket(socketInstance)
-    connectSocket()
+    try {
+      const socketInstance = initSocket()
+      setSocket(socketInstance)
+      connectSocket()
 
-    socketInstance.on('queue-update', (data) => {
-      setActiveQueues(prev => ({
-        ...prev,
-        [data.placeId]: data
-      }))
-    })
+      socketInstance.on('queue-update', (data) => {
+        setActiveQueues(prev => ({
+          ...prev,
+          [data.placeId]: data
+        }))
+      })
 
-    return () => disconnectSocket()
+      return () => {
+        try {
+          disconnectSocket()
+        } catch (e) {
+          console.error('Socket disconnect error:', e)
+        }
+      }
+    } catch (error) {
+      console.error('Socket init error:', error)
+    }
   }, [])
 
   const subscribeToQueue = (placeId) => {

@@ -4,6 +4,8 @@ const placeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, enum: ['hotels', 'hospitals', 'banks'], required: true },
   region: { type: String, required: true },
+  city: { type: String, required: true },
+  state: { type: String, required: true },
   address: { type: String, required: true },
   phone: { type: String, required: true },
   description: String,

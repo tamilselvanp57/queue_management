@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import { QueueProvider } from './context/QueueContext'
 import AppRoutes from './routes/AppRoutes'
+import TestPage from './pages/TestPage'
 
 function App() {
   return (

@@ -4,18 +4,36 @@ import { Clock, MapPin, Trash2, Calendar, CheckCircle, XCircle, AlertCircle, Dow
 import { motion } from 'framer-motion'
 import Header from '../../components/common/Header'
 import Loader from '../../components/common/Loader'
+import BookingCountdown from '../../components/booking/BookingCountdown'
 import { exportBookingHistory } from '../../utils/exportUtils'
 import axios from '../../services/axiosConfig'
 import toast from 'react-hot-toast'
+import { io } from 'socket.io-client'
+import { SOCKET_URL } from '../../utils/constants'
 
 const MyBookingsPage = () => {
   const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // all, active, completed, cancelled
+  const [filter, setFilter] = useState('all')
+  const [socket, setSocket] = useState(null)
 
   useEffect(() => {
     fetchBookings()
+    
+    const newSocket = io(SOCKET_URL)
+    setSocket(newSocket)
+    
+    const userId = JSON.parse(localStorage.getItem('user'))?.id
+    if (userId) {
+      newSocket.emit('join-user', userId)
+      newSocket.on('booking-completed', (data) => {
+        toast.success(data.message)
+        fetchBookings()
+      })
+    }
+    
+    return () => newSocket.close()
   }, [])
 
   const fetchBookings = async () => {
@@ -145,6 +163,15 @@ const MyBookingsPage = () => {
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
+                    {booking.status === 'active' && (
+                      <div className="mb-4">
+                        <BookingCountdown 
+                          booking={booking} 
+                          onTimeUp={() => toast.success('Your turn has arrived!')} 
+                        />
+                      </div>
+                    )}
+                    
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="text-xl font-bold">{booking.place?.name}</h3>
                       {getStatusIcon(booking.status)}

@@ -1,13 +1,19 @@
 import express from 'express'
-import { callNextToken, getDashboardStats, getAllBookings } from '../controllers/adminController.js'
+import {
+  getAdminBookings,
+  completeBooking,
+  getAdminStats,
+  getAdminPlace,
+  updateAdminPlace
+} from '../controllers/adminController.js'
 import { authenticate, isAdmin } from '../middleware/auth.js'
 
 const router = express.Router()
 
-router.use(authenticate, isAdmin)
-
-router.post('/queue/:placeId/next', callNextToken)
-router.get('/stats', getDashboardStats)
-router.get('/bookings', getAllBookings)
+router.get('/bookings', authenticate, isAdmin, getAdminBookings)
+router.put('/bookings/:id/complete', authenticate, isAdmin, completeBooking)
+router.get('/stats', authenticate, isAdmin, getAdminStats)
+router.get('/place', authenticate, isAdmin, getAdminPlace)
+router.put('/place', authenticate, isAdmin, updateAdminPlace)
 
 export default router

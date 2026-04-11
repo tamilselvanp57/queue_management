@@ -15,7 +15,7 @@ const Header = () => {
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/home" className="flex items-center space-x-2">
             <span className="text-2xl font-bold text-primary">SmartQueue</span>
           </Link>
 
@@ -35,10 +35,10 @@ const Header = () => {
               </>
             ) : (
               <>
-                <Link to="/login" className="text-gray-700 hover:text-primary font-medium">
+                <Link to="/login?role=user" className="text-gray-700 hover:text-primary font-medium">
                   Login
                 </Link>
-                <Link to="/register" className="btn-primary">
+                <Link to="/register?role=user" className="btn-primary">
                   Register
                 </Link>
               </>

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import toast from 'react-hot-toast'
 import Header from '../../components/common/Header'
 
 const LiveQueuePage = () => {
@@ -9,6 +10,47 @@ const LiveQueuePage = () => {
   const [userToken] = useState(28)
 
   const peopleAhead = Math.max(0, userToken - currentToken - 1)
+  const estimatedWaitMinutes = peopleAhead * 3
+
+  const [remainingSeconds, setRemainingSeconds] = useState(() =>
+    Math.max(0, Math.floor(estimatedWaitMinutes * 60))
+  )
+  const hasNotifiedRef = useRef(false)
+
+  useEffect(() => {
+    const initialSeconds = Math.max(0, Math.floor(estimatedWaitMinutes * 60))
+    setRemainingSeconds(initialSeconds)
+    hasNotifiedRef.current = false
+
+    if (initialSeconds <= 0) {
+      // Avoid spamming on re-renders; this only runs when estimate changes.
+      toast.success('You can arrive here')
+      hasNotifiedRef.current = true
+      return
+    }
+
+    const intervalId = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          if (!hasNotifiedRef.current) {
+            toast.success('You can arrive here')
+            hasNotifiedRef.current = true
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(intervalId)
+  }, [estimatedWaitMinutes])
+
+  const formattedRemaining = (() => {
+    const total = Math.max(0, remainingSeconds)
+    const mins = Math.floor(total / 60)
+    const secs = total % 60
+    return `${mins}:${String(secs).padStart(2, '0')}`
+  })()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,7 +88,7 @@ const LiveQueuePage = () => {
                 </div>
                 <div>
                   <div className="text-gray-600 text-sm">Estimated Wait</div>
-                  <div className="text-2xl font-bold">{peopleAhead * 3} mins</div>
+                  <div className="text-2xl font-bold">{formattedRemaining}</div>
                 </div>
               </div>
             </div>

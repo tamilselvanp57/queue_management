@@ -31,6 +31,7 @@ app.use('/api/admin', adminRoutes)
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
   socket.on('join-queue', (placeId) => socket.join(`place-${placeId}`))
+  socket.on('join-user', (userId) => socket.join(`user-${userId}`))
   socket.on('leave-queue', (placeId) => socket.leave(`place-${placeId}`))
   socket.on('disconnect', () => console.log('Client disconnected'))
 })
