@@ -27,7 +27,7 @@ const JoinQueueButton = ({ place }) => {
     setLoading(true)
     try {
       const { data } = await axios.post('/queue/join', {
-        placeId: place._id,
+        placeId: place.id,
         userLocation: {
           type: 'Point',
           coordinates: [location.longitude, location.latitude]
@@ -35,7 +35,7 @@ const JoinQueueButton = ({ place }) => {
       })
 
       toast.success(`Joined queue! Token: ${data.displayNumber}`)
-      navigate(`/token/${data._id}`)
+      navigate(`/token/${data.id}`)
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to join queue')
     } finally {

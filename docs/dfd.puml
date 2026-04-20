@@ -1,0 +1,43 @@
+@startuml
+skinparam componentStyle uml2
+skinparam BackgroundColor White
+skinparam ArrowColor Black
+
+actor "Customer / User" as User
+actor "Business Admin" as Admin
+
+rectangle "SmartQueue Platform" {
+  component "1.0 Authentication Engine" as Auth
+  component "2.0 Location & Discovery Engine" as PlaceMgr
+  component "3.0 Live Queue & Booking Engine" as QueueMgr
+  component "4.0 Notification & Socket Engine" as NotifyMgr
+}
+
+database "PostgreSQL Database" {
+  collections "Users Table" as DBUsers
+  collections "Places Table" as DBPlaces
+  collections "Bookings Table" as DBBookings
+}
+
+' User flows
+User --> Auth : Login, Registration Data
+User --> PlaceMgr : Search queries, GPS coordinates
+User --> QueueMgr : Booking requests, Queue joined
+
+' Admin flows
+Admin --> Auth : Login, Admin Registration
+Admin --> PlaceMgr : Update business details, upload images
+Admin --> QueueMgr : Fetch queue, complete/cancel actions
+
+' System interactions
+Auth --> DBUsers : Read/Write Credentials
+PlaceMgr --> DBPlaces : Read/Write Hotel Data
+QueueMgr --> DBBookings : Read/Write Booking Status
+QueueMgr --> DBPlaces : Update Queue Length & Tokens
+
+' Bi-directional live sync
+QueueMgr --> NotifyMgr : Trigger Sync Process
+NotifyMgr --> User : Broadcast Live 'queue-update' & Wait Times
+NotifyMgr --> Admin : Confirm booking updates
+
+@enduml

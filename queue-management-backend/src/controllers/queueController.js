@@ -1,5 +1,4 @@
-import Token from '../models/Token.js'
-import Place from '../models/Place.js'
+import prisma from '../config/prisma.js'
 import { calculateDistance, calculateTravelTime } from '../utils/locationUtils.js'
 import { sendAlert } from '../utils/notificationService.js'
 
@@ -7,71 +6,68 @@ export const joinQueue = async (req, res) => {
   try {
     const { placeId, userLocation } = req.body
     
-    const place = await Place.findById(placeId)
+    const place = await prisma.place.findUnique({ where: { id: placeId } })
     if (!place) return res.status(404).json({ message: 'Place not found' })
     
-    // Check if user already in queue
-    const existing = await Token.findOne({
-      user: req.user.id,
-      place: placeId,
-      status: { $in: ['waiting', 'called'] }
+    const existing = await prisma.token.findFirst({
+      where: {
+        userId: req.user.id,
+        placeId: placeId,
+        status: { in: ['waiting', 'called'] }
+      }
     })
     if (existing) return res.status(400).json({ message: 'Already in queue' })
     
-    // Get current queue position
-    const queueCount = await Token.countDocuments({
-      place: placeId,
-      status: { $in: ['waiting', 'called'] }
+    const queueCount = await prisma.token.count({
+      where: {
+        placeId: placeId,
+        status: { in: ['waiting', 'called'] }
+      }
     })
     
-    // Generate token number
     const tokenNumber = `${place.name.substring(0, 1).toUpperCase()}${String(place.currentToken + queueCount + 1).padStart(3, '0')}`
     
-    // Calculate distance and travel time
     const distance = calculateDistance(
       userLocation.coordinates,
-      place.location.coordinates
+      [place.longitude, place.latitude]
     )
     const travelTime = calculateTravelTime(distance)
     
-    // Calculate estimated wait time
     const estimatedWaitTime = (queueCount + 1) * (place.avgServiceTime || 15)
     const estimatedCallTime = new Date(Date.now() + estimatedWaitTime * 60000)
     
-    const token = new Token({
-      tokenNumber,
-      displayNumber: tokenNumber,
-      user: req.user.id,
-      place: placeId,
-      queuePosition: queueCount + 1,
-      userLocation: {
-        type: 'Point',
-        coordinates: userLocation.coordinates
-      },
-      distanceFromPlace: distance,
-      travelTime,
-      estimatedWaitTime,
-      estimatedCallTime
+    const token = await prisma.token.create({
+      data: {
+        tokenNumber,
+        displayNumber: tokenNumber,
+        userId: req.user.id,
+        placeId: placeId,
+        queuePosition: queueCount + 1,
+        userLng: userLocation.coordinates ? userLocation.coordinates[0] : null,
+        userLat: userLocation.coordinates ? userLocation.coordinates[1] : null,
+        distanceFromPlace: distance,
+        travelTime,
+        estimatedWaitTime,
+        estimatedCallTime,
+        alertsSent: []
+      }
     })
     
-    await token.save()
+    const updatedPlace = await prisma.place.update({
+      where: { id: placeId },
+      data: { queueLength: { increment: 1 } }
+    })
     
-    // Update place queue length
-    place.queueLength += 1
-    await place.save()
-    
-    // Emit WebSocket event
     req.io.to(`place-${placeId}`).emit('queue-joined', {
       placeId,
-      queueLength: place.queueLength,
+      queueLength: updatedPlace.queueLength,
       tokenNumber
     })
     
-    // Send confirmation notification
     await sendAlert(req.user.id, {
       type: 'queue-joined',
       message: `You've joined the queue. Your token: ${tokenNumber}`,
-      tokenId: token._id
+      tokenId: token.id
     })
     
     res.status(201).json(token)
@@ -82,23 +78,32 @@ export const joinQueue = async (req, res) => {
 
 export const getTokenStatus = async (req, res) => {
   try {
-    const token = await Token.findById(req.params.tokenId)
-      .populate('place', 'name address location currentToken avgServiceTime')
+    const token = await prisma.token.findUnique({
+      where: { id: req.params.tokenId },
+      include: {
+        place: { select: { name: true, address: true, latitude: true, longitude: true, currentToken: true, avgServiceTime: true } }
+      }
+    })
     
     if (!token) return res.status(404).json({ message: 'Token not found' })
     
-    // Recalculate position and wait time
-    const currentPosition = await Token.countDocuments({
-      place: token.place._id,
-      status: { $in: ['waiting', 'called'] },
-      queuePosition: { $lt: token.queuePosition }
+    const currentPosition = await prisma.token.count({
+      where: {
+        placeId: token.placeId,
+        status: { in: ['waiting', 'called'] },
+        queuePosition: { lt: token.queuePosition }
+      }
     })
     
-    token.queuePosition = currentPosition + 1
-    token.estimatedWaitTime = currentPosition * (token.place.avgServiceTime || 15)
-    await token.save()
+    const queuePosition = currentPosition + 1
+    const estimatedWaitTime = currentPosition * (token.place.avgServiceTime || 15)
     
-    res.json(token)
+    const updatedToken = await prisma.token.update({
+      where: { id: token.id },
+      data: { queuePosition, estimatedWaitTime }
+    })
+    
+    res.json({ ...updatedToken, place: token.place })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -108,23 +113,29 @@ export const updateUserLocation = async (req, res) => {
   try {
     const { tokenId, location } = req.body
     
-    const token = await Token.findById(tokenId).populate('place')
+    const token = await prisma.token.findUnique({
+      where: { id: tokenId },
+      include: { place: true }
+    })
     if (!token) return res.status(404).json({ message: 'Token not found' })
     
-    // Update location
-    token.userLocation.coordinates = location.coordinates
-    
-    // Recalculate distance and travel time
-    token.distanceFromPlace = calculateDistance(
+    const distance = calculateDistance(
       location.coordinates,
-      token.place.location.coordinates
+      [token.place.longitude, token.place.latitude]
     )
-    token.travelTime = calculateTravelTime(token.distanceFromPlace)
+    const travelTime = calculateTravelTime(distance)
     
-    await token.save()
+    const updatedToken = await prisma.token.update({
+      where: { id: tokenId },
+      data: {
+        userLng: location.coordinates ? location.coordinates[0] : null,
+        userLat: location.coordinates ? location.coordinates[1] : null,
+        distanceFromPlace: distance,
+        travelTime
+      }
+    })
     
-    // Check if alert should be triggered
-    await checkAndSendAlerts(token)
+    await checkAndSendAlerts(updatedToken)
     
     res.json({ message: 'Location updated' })
   } catch (error) {
@@ -134,22 +145,28 @@ export const updateUserLocation = async (req, res) => {
 
 export const leaveQueue = async (req, res) => {
   try {
-    const token = await Token.findById(req.params.tokenId)
+    const token = await prisma.token.findUnique({ where: { id: req.params.tokenId } })
     if (!token) return res.status(404).json({ message: 'Token not found' })
     
-    token.status = 'cancelled'
-    await token.save()
-    
-    // Update place queue
-    const place = await Place.findById(token.place)
-    place.queueLength = Math.max(0, place.queueLength - 1)
-    await place.save()
-    
-    // Emit event
-    req.io.to(`place-${token.place}`).emit('queue-left', {
-      placeId: token.place,
-      queueLength: place.queueLength
+    await prisma.token.update({
+      where: { id: req.params.tokenId },
+      data: { status: 'cancelled' }
     })
+    
+    const currentPlace = await prisma.place.findUnique({ where: { id: token.placeId } })
+    if (currentPlace) {
+      const updatedPlace = await prisma.place.update({
+        where: { id: token.placeId },
+        data: {
+          queueLength: Math.max(0, currentPlace.queueLength - 1)
+        }
+      })
+      
+      req.io.to(`place-${token.placeId}`).emit('queue-left', {
+        placeId: token.placeId,
+        queueLength: updatedPlace.queueLength
+      })
+    }
     
     res.json({ message: 'Left queue successfully' })
   } catch (error) {
@@ -159,38 +176,44 @@ export const leaveQueue = async (req, res) => {
 
 async function checkAndSendAlerts(token) {
   const tokensAway = token.queuePosition - 1
+  let alertsSent = Array.isArray(token.alertsSent) ? [...token.alertsSent] : []
+  let updated = false
   
-  // Alert when 5 tokens away
-  if (tokensAway === 5 && !token.alertsSent.find(a => a.type === 'approaching')) {
-    await sendAlert(token.user, {
+  if (tokensAway === 5 && !alertsSent.find(a => a.type === 'approaching')) {
+    await sendAlert(token.userId, {
       type: 'approaching',
       message: `Your turn is approaching! ${tokensAway} people ahead.`,
-      tokenId: token._id
+      tokenId: token.id
     })
-    token.alertsSent.push({ type: 'approaching', tokensAway })
-    await token.save()
+    alertsSent.push({ type: 'approaching', tokensAway })
+    updated = true
   }
   
-  // Alert when 2 tokens away (time to leave)
-  if (tokensAway === 2 && !token.alertsSent.find(a => a.type === 'ready')) {
-    await sendAlert(token.user, {
+  if (tokensAway === 2 && !alertsSent.find(a => a.type === 'ready')) {
+    await sendAlert(token.userId, {
       type: 'ready',
       message: `Time to head to the location! ETA: ${token.travelTime} mins`,
-      tokenId: token._id
+      tokenId: token.id
     })
-    token.alertsSent.push({ type: 'ready', tokensAway })
-    await token.save()
+    alertsSent.push({ type: 'ready', tokensAway })
+    updated = true
   }
   
-  // Final alert when it's your turn
-  if (tokensAway === 0 && !token.alertsSent.find(a => a.type === 'final')) {
-    await sendAlert(token.user, {
+  if (tokensAway === 0 && !alertsSent.find(a => a.type === 'final')) {
+    await sendAlert(token.userId, {
       type: 'final',
       message: `It's your turn! Token ${token.displayNumber} is being called.`,
-      tokenId: token._id
+      tokenId: token.id
     })
-    token.alertsSent.push({ type: 'final', tokensAway })
-    await token.save()
+    alertsSent.push({ type: 'final', tokensAway })
+    updated = true
+  }
+  
+  if (updated) {
+    await prisma.token.update({
+      where: { id: token.id },
+      data: { alertsSent }
+    })
   }
 }
 

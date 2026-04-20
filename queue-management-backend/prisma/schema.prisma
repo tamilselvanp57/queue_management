@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  password     String
+  role         String   @default("user")
+  businessType String?
+  placeId      String?
+
+  place        Place?   @relation(fields: [placeId], references: [id])
+  bookings     Booking[]   // ✅ FIX
+  tokens       Token[]
+  notifications Notification[]
+}
+
+model Place {
+  id          String   @id @default(uuid())
+  name        String
+  category    String
+  region      String
+  city        String
+  state       String
+  address     String
+  phone       String
+  description String?
+  hours       String?
+  image       String?
+
+  latitude    Float
+  longitude   Float
+
+  queueLength    Int @default(0)   // ✅ FIX
+  currentToken   Int @default(0)   // ✅ FIX
+  avgServiceTime Int @default(15)  // avg wait time in minutes
+
+  users        User[]
+  bookings     Booking[]         // ✅ FIX
+  tokens       Token[]
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  userId      String
+  placeId     String
+  tokenNumber Int
+  slotTime    String?
+  partySize   Int?
+  status      String   @default("active")
+
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  place       Place    @relation(fields: [placeId], references: [id])
+}
+
+model Token {
+  id                String   @id @default(uuid())
+  tokenNumber       String   @unique
+  displayNumber     String
+  userId            String
+  placeId           String
+  counter           String   @default("Counter 1")
+  
+  status            String   @default("waiting") // waiting, called, serving, completed, cancelled, no-show
+  
+  joinedAt          DateTime @default(now())
+  estimatedCallTime DateTime?
+  actualCallTime    DateTime?
+  completedAt       DateTime?
+  
+  // userLocation mapping
+  userLat           Float?
+  userLng           Float?
+  
+  distanceFromPlace Float?   // km
+  travelTime        Int?     // minutes
+  
+  queuePosition     Int
+  estimatedWaitTime Int?     // minutes
+  
+  alertsSent        Json     @default("[]") // { type, sentAt, tokensAway }[]
+  
+  // metadata mapping
+  deviceInfo        String?
+  joinMethod        String   @default("web") // web, mobile, booking
+  bookingId         String?
+
+  user              User     @relation(fields: [userId], references: [id])
+  place             Place    @relation(fields: [placeId], references: [id])
+  notifications     Notification[]
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenId   String?
+  type      String   // queue-joined, approaching, ready, final-call, booking-reminder, cancelled
+  message   String
+  sentAt    DateTime @default(now())
+  readAt    DateTime?
+  channels  Json     @default("[]") // ["in-app", "sms", ...]
+
+  user      User     @relation(fields: [userId], references: [id])
+  token     Token?   @relation(fields: [tokenId], references: [id])
+}

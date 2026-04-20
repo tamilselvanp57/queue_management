@@ -33,7 +33,7 @@ const LocationMap = ({ places, userLocation }) => {
 
       {places.map((place) => (
         <Marker
-          key={place._id}
+          key={place.id}
           position={[place.location.coordinates[1], place.location.coordinates[0]]}
         >
           <Popup>
@@ -42,7 +42,7 @@ const LocationMap = ({ places, userLocation }) => {
               <p className="text-sm text-gray-600">{place.address}</p>
               <p className="text-sm">Queue: {place.queueLength} people</p>
               <button
-                onClick={() => navigate(`/place/${place._id}`)}
+                onClick={() => navigate(`/place/${place.id}`)}
                 className="mt-2 bg-primary text-white px-4 py-1 rounded text-sm"
               >
                 View Details

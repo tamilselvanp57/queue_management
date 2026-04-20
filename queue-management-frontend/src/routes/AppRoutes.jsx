@@ -34,7 +34,7 @@ const AppRoutes = () => {
       <Route path="/categories/:type" element={<CategoryListPage />} />
       <Route path="/place/:id" element={<PlaceDetailPage />} />
       <Route path="/token/:tokenId" element={<PrivateRoute><TokenPage /></PrivateRoute>} />
-      <Route path="/queue/:placeId/live" element={<LiveQueuePage />} />
+      <Route path="/queue/:placeId" element={<LiveQueuePage />} />
       <Route path="/booking/success/:bookingId" element={<BookingSuccessPage />} />
       <Route path="/my-bookings" element={<PrivateRoute><MyBookingsPage /></PrivateRoute>} />
       <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

@@ -1,10 +1,5 @@
-import mongoose from 'mongoose'
-import dotenv from 'dotenv'
-import Place from '../models/Place.js'
-import User from '../models/User.js'
+import prisma from '../config/prisma.js'
 import bcrypt from 'bcryptjs'
-
-dotenv.config()
 
 const CITIES_DATA = [
   { name: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777, region: 'west' },
@@ -36,16 +31,12 @@ const generatePlaces = () => {
         address: `${idx + 1}, Main Street, ${city.name}, ${city.state}`,
         phone: `+91-${9000000000 + Math.floor(Math.random() * 999999999)}`,
         description: `Premium dining experience in ${city.name}`,
-        rating: 4 + Math.random(),
         hours: '11:00 AM - 11:00 PM',
-        location: {
-          type: 'Point',
-          coordinates: [city.lng + (Math.random() - 0.5) * 0.1, city.lat + (Math.random() - 0.5) * 0.1]
-        },
+        longitude: city.lng + (Math.random() - 0.5) * 0.1,
+        latitude: city.lat + (Math.random() - 0.5) * 0.1,
         currentToken: Math.floor(Math.random() * 10),
         queueLength: Math.floor(Math.random() * 20),
-        avgServiceTime: 30,
-        isActive: true
+        avgServiceTime: 30
       })
     })
     
@@ -59,16 +50,12 @@ const generatePlaces = () => {
         address: `${idx + 10}, Commercial Complex, ${city.name}, ${city.state}`,
         phone: `+91-${8000000000 + Math.floor(Math.random() * 999999999)}`,
         description: `Full service banking in ${city.name}`,
-        rating: 4 + Math.random(),
         hours: '10:00 AM - 4:00 PM',
-        location: {
-          type: 'Point',
-          coordinates: [city.lng + (Math.random() - 0.5) * 0.1, city.lat + (Math.random() - 0.5) * 0.1]
-        },
+        longitude: city.lng + (Math.random() - 0.5) * 0.1,
+        latitude: city.lat + (Math.random() - 0.5) * 0.1,
         currentToken: Math.floor(Math.random() * 5),
         queueLength: Math.floor(Math.random() * 15),
-        avgServiceTime: 15,
-        isActive: true
+        avgServiceTime: 15
       })
     })
   })
@@ -78,39 +65,47 @@ const generatePlaces = () => {
 
 const seedDatabase = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
-    console.log('Connected to MongoDB')
+    console.log('Connected to database')
     
-    await Place.deleteMany({})
+    // Clear dependent tables first
+    await prisma.notification.deleteMany({})
+    await prisma.token.deleteMany({})
+    await prisma.booking.deleteMany({})
+    await prisma.user.deleteMany({ where: { role: 'admin' } })
+    await prisma.place.deleteMany({})
     console.log('Cleared existing places')
     
     const places = generatePlaces()
-    const createdPlaces = await Place.insertMany(places)
+    const createdPlaces = await prisma.$transaction(
+      places.map(place => prisma.place.create({ data: place }))
+    )
     console.log(`Created ${createdPlaces.length} places`)
     
-    await User.deleteMany({ role: 'admin' })
     const adminUsers = []
+    const hashedPassword = await bcrypt.hash('admin123', 10)
     
     for (const place of createdPlaces) {
-      const hashedPassword = await bcrypt.hash('admin123', 10)
       adminUsers.push({
         name: `${place.name} Admin`,
-        email: `admin.${place._id}@smartqueue.com`,
+        email: `admin.${place.id}@smartqueue.com`,
         password: hashedPassword,
         phone: place.phone,
         role: 'admin',
-        placeId: place._id,
+        placeId: place.id,
         businessType: place.category
       })
     }
     
-    await User.insertMany(adminUsers)
+    await prisma.user.createMany({ data: adminUsers })
+    
     console.log(`Created ${adminUsers.length} admin users`)
     console.log('Sample admin login: admin.{placeId}@smartqueue.com / admin123')
     
+    await prisma.$disconnect()
     process.exit(0)
   } catch (error) {
     console.error('Seed error:', error)
+    await prisma.$disconnect()
     process.exit(1)
   }
 }

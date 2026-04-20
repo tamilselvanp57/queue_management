@@ -60,7 +60,7 @@ const MyBookingsPage = () => {
   }
 
   const handleRebook = (booking) => {
-    navigate(`/place/${booking.place._id}`)
+    navigate(`/place/${booking.place.id}`)
   }
 
   const filteredBookings = bookings.filter(booking => {
@@ -156,7 +156,7 @@ const MyBookingsPage = () => {
           <div className="space-y-4">
             {filteredBookings.map((booking) => (
               <motion.div
-                key={booking._id}
+                key={booking.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="card hover:shadow-lg transition-shadow"
@@ -220,13 +220,13 @@ const MyBookingsPage = () => {
                     {booking.status === 'active' && (
                       <>
                         <button
-                          onClick={() => navigate(`/queue/${booking.place._id}/live`)}
+                          onClick={() => navigate(`/queue/${booking.place.id}/live`)}
                           className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-600 whitespace-nowrap"
                         >
                           Track Queue
                         </button>
                         <button
-                          onClick={() => handleCancel(booking._id)}
+                          onClick={() => handleCancel(booking.id)}
                           className="flex items-center justify-center text-red-600 hover:text-red-800 px-4 py-2 border border-red-300 rounded-lg hover:bg-red-50"
                         >
                           <Trash2 className="w-4 h-4 mr-1" />

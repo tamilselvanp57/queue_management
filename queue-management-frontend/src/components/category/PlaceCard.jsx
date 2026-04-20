@@ -29,7 +29,7 @@ const PlaceCard = ({ place }) => {
       >
       <div className="relative h-48 mb-4 rounded-lg overflow-hidden">
         <img 
-          src={place.image || 'https://via.placeholder.com/400x300'} 
+          src={place.image || '/assets/hotel_thumbnail.png'} 
           alt={place.name}
           className="w-full h-full object-cover"
         />

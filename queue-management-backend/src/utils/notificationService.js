@@ -1,17 +1,17 @@
-import Notification from '../models/Notification.js'
+import prisma from '../config/prisma.js'
 
 export const sendAlert = async (userId, alertData) => {
   try {
-    const notification = new Notification({
-      user: userId,
-      token: alertData.tokenId,
-      type: alertData.type,
-      message: alertData.message,
-      sentAt: new Date(),
-      channels: ['in-app']
+    const notification = await prisma.notification.create({
+      data: {
+        userId: userId,
+        tokenId: alertData.tokenId || null,
+        type: alertData.type,
+        message: alertData.message,
+        sentAt: new Date(),
+        channels: ['in-app']
+      }
     })
-    
-    await notification.save()
     
     global.io?.to(`user-${userId}`).emit('notification', {
       type: alertData.type,
@@ -26,16 +26,19 @@ export const sendAlert = async (userId, alertData) => {
 }
 
 export const getUnreadNotifications = async (userId) => {
-  return await Notification.find({
-    user: userId,
-    readAt: null
-  }).sort({ sentAt: -1 }).limit(20)
+  return await prisma.notification.findMany({
+    where: {
+      userId: userId,
+      readAt: null
+    },
+    orderBy: { sentAt: 'desc' },
+    take: 20
+  })
 }
 
 export const markAsRead = async (notificationId) => {
-  return await Notification.findByIdAndUpdate(
-    notificationId,
-    { readAt: new Date() },
-    { new: true }
-  )
+  return await prisma.notification.update({
+    where: { id: notificationId },
+    data: { readAt: new Date() }
+  })
 }

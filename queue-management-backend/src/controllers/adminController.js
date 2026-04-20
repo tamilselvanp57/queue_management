@@ -1,12 +1,15 @@
-import Booking from '../models/Booking.js'
-import Place from '../models/Place.js'
+import prisma from '../config/prisma.js'
 
 export const getAdminBookings = async (req, res) => {
   try {
     const placeId = req.user.placeId
-    const bookings = await Booking.find({ place: placeId, status: 'active' })
-      .populate('user', 'name email phone')
-      .sort({ createdAt: 1 })
+    const bookings = await prisma.booking.findMany({
+      where: { placeId },
+      include: {
+        user: { select: { name: true, email: true, phone: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
     res.json(bookings)
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -15,29 +18,35 @@ export const getAdminBookings = async (req, res) => {
 
 export const completeBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id)
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } })
     if (!booking) return res.status(404).json({ message: 'Booking not found' })
-    if (booking.place.toString() !== req.user.placeId.toString()) {
+    if (booking.placeId !== req.user.placeId) {
       return res.status(403).json({ message: 'Unauthorized' })
     }
     
-    booking.status = 'completed'
-    await booking.save()
+    await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { status: 'completed' }
+    })
     
-    const place = await Place.findById(booking.place)
-    if (place) {
-      place.currentToken += 1
-      if (place.queueLength > 0) place.queueLength -= 1
-      await place.save()
-      
-      req.io.to(`place-${booking.place}`).emit('queue-update', {
-        placeId: booking.place,
-        currentToken: place.currentToken,
-        queueLength: place.queueLength
+    const currentPlace = await prisma.place.findUnique({ where: { id: booking.placeId } })
+    if (currentPlace) {
+      const updatedPlace = await prisma.place.update({
+        where: { id: booking.placeId },
+        data: {
+          currentToken: currentPlace.currentToken + 1,
+          queueLength: Math.max(0, currentPlace.queueLength - 1)
+        }
       })
       
-      req.io.to(`user-${booking.user}`).emit('booking-completed', {
-        bookingId: booking._id,
+      req.io.to(`place-${booking.placeId}`).emit('queue-update', {
+        placeId: booking.placeId,
+        currentToken: updatedPlace.currentToken,
+        queueLength: updatedPlace.queueLength
+      })
+      
+      req.io.to(`user-${booking.userId}`).emit('booking-completed', {
+        bookingId: booking.id,
         message: 'Your service is completed'
       })
     }
@@ -55,9 +64,9 @@ export const getAdminStats = async (req, res) => {
     today.setHours(0, 0, 0, 0)
     
     const [totalToday, activeBookings, completedToday] = await Promise.all([
-      Booking.countDocuments({ place: placeId, createdAt: { $gte: today } }),
-      Booking.countDocuments({ place: placeId, status: 'active' }),
-      Booking.countDocuments({ place: placeId, status: 'completed', updatedAt: { $gte: today } })
+      prisma.booking.count({ where: { placeId, createdAt: { gte: today } } }),
+      prisma.booking.count({ where: { placeId, status: 'active' } }),
+      prisma.booking.count({ where: { placeId, status: 'completed', createdAt: { gte: today } } })
     ])
     
     res.json({ totalToday, activeBookings, completedToday })
@@ -68,7 +77,7 @@ export const getAdminStats = async (req, res) => {
 
 export const getAdminPlace = async (req, res) => {
   try {
-    const place = await Place.findById(req.user.placeId)
+    const place = await prisma.place.findUnique({ where: { id: req.user.placeId } })
     if (!place) return res.status(404).json({ message: 'Place not found' })
     res.json(place)
   } catch (error) {
@@ -78,7 +87,7 @@ export const getAdminPlace = async (req, res) => {
 
 export const updateAdminPlace = async (req, res) => {
   try {
-    const place = await Place.findById(req.user.placeId)
+    const place = await prisma.place.findUnique({ where: { id: req.user.placeId } })
     if (!place) return res.status(404).json({ message: 'Place not found' })
 
     const {
@@ -91,17 +100,20 @@ export const updateAdminPlace = async (req, res) => {
       description,
       hours,
       latitude,
-      longitude
+      longitude,
+      image
     } = req.body
 
-    if (name !== undefined) place.name = name
-    if (region !== undefined) place.region = region
-    if (city !== undefined) place.city = city
-    if (state !== undefined) place.state = state
-    if (address !== undefined) place.address = address
-    if (phone !== undefined) place.phone = phone
-    if (description !== undefined) place.description = description
-    if (hours !== undefined) place.hours = hours
+    const updateData = {}
+    if (name !== undefined) updateData.name = name
+    if (region !== undefined) updateData.region = region
+    if (city !== undefined) updateData.city = city
+    if (state !== undefined) updateData.state = state
+    if (address !== undefined) updateData.address = address
+    if (phone !== undefined) updateData.phone = phone
+    if (description !== undefined) updateData.description = description
+    if (hours !== undefined) updateData.hours = hours
+    if (image !== undefined) updateData.image = image
 
     if (latitude !== undefined && longitude !== undefined) {
       const lat = parseFloat(latitude)
@@ -109,11 +121,16 @@ export const updateAdminPlace = async (req, res) => {
       if (Number.isNaN(lat) || Number.isNaN(lng)) {
         return res.status(400).json({ message: 'Invalid latitude or longitude' })
       }
-      place.location = { type: 'Point', coordinates: [lng, lat] }
+      updateData.latitude = lat
+      updateData.longitude = lng
     }
 
-    await place.save()
-    res.json(place)
+    const updatedPlace = await prisma.place.update({
+      where: { id: req.user.placeId },
+      data: updateData
+    })
+    
+    res.json(updatedPlace)
   } catch (error) {
     res.status(500).json({ message: error.message })
   }

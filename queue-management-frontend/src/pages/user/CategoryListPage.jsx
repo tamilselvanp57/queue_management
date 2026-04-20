@@ -85,7 +85,7 @@ const CategoryListPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPlaces.map((place) => (
-              <PlaceCard key={place._id} place={place} />
+              <PlaceCard key={place.id} place={place} />
             ))}
           </div>
         )}

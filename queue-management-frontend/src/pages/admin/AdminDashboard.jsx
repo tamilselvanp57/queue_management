@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, CheckCircle, Clock, LogOut } from 'lucide-react'
+import { Users, CheckCircle, Clock, LogOut, History, XCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import axios from '../../services/axiosConfig'
 import toast from 'react-hot-toast'
@@ -21,10 +21,14 @@ const AdminDashboard = () => {
     description: '',
     hours: '',
     latitude: '',
-    longitude: ''
+    longitude: '',
+    image: ''
   })
   const [loading, setLoading] = useState(true)
   const [savingPlace, setSavingPlace] = useState(false)
+  
+  // Tabs: 'active' | 'history'
+  const [activeTab, setActiveTab] = useState('active')
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -56,8 +60,9 @@ const AdminDashboard = () => {
           phone: place.phone || '',
           description: place.description || '',
           hours: place.hours || '',
-          latitude: place.location?.coordinates?.[1]?.toString() || '',
-          longitude: place.location?.coordinates?.[0]?.toString() || ''
+          latitude: place.latitude?.toString() || '',
+          longitude: place.longitude?.toString() || '',
+          image: place.image || ''
         })
       }
     } catch (error) {
@@ -100,6 +105,9 @@ const AdminDashboard = () => {
     }
   }
 
+  const activeBookings = bookings.filter(b => b.status === 'active')
+  const historyBookings = bookings.filter(b => b.status !== 'active')
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-md">
@@ -127,6 +135,7 @@ const AdminDashboard = () => {
             <input name="hours" value={placeForm.hours} onChange={handlePlaceChange} className="input-field" placeholder="Working Hours" />
             <input name="latitude" value={placeForm.latitude} onChange={handlePlaceChange} className="input-field" placeholder="Latitude" required />
             <input name="longitude" value={placeForm.longitude} onChange={handlePlaceChange} className="input-field" placeholder="Longitude" required />
+            <input name="image" value={placeForm.image} onChange={handlePlaceChange} className="input-field md:col-span-2" placeholder="Image URL (e.g. /assets/hotel_thumbnail.png)" />
             <input name="address" value={placeForm.address} onChange={handlePlaceChange} className="input-field md:col-span-2" placeholder="Address" required />
             <textarea name="description" value={placeForm.description} onChange={handlePlaceChange} className="input-field md:col-span-2" placeholder="Description" rows={3} />
             <div className="md:col-span-2">
@@ -170,49 +179,101 @@ const AdminDashboard = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-6">Active Bookings Queue</h2>
+          <div className="flex items-center justify-between mb-6 border-b pb-4">
+             <h2 className="text-xl font-bold">Queue Management</h2>
+             <div className="flex space-x-2">
+                <button 
+                  onClick={() => setActiveTab('active')} 
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'active' ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                >
+                  <span className="flex items-center"><Clock className="w-4 h-4 mr-2" /> Active Log</span>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('history')} 
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'history' ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                >
+                  <span className="flex items-center"><History className="w-4 h-4 mr-2" /> History</span>
+                </button>
+             </div>
+          </div>
           
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading...</div>
-          ) : bookings.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No active bookings</div>
-          ) : (
-            <div className="space-y-4">
-              {bookings.map((booking, index) => (
-                <motion.div
-                  key={booking._id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
-                        <span className="text-2xl font-bold text-primary">#{booking.tokenNumber}</span>
-                        <div>
-                          <p className="font-semibold">{booking.user?.name}</p>
-                          <p className="text-sm text-gray-600">{booking.user?.phone}</p>
+          ) : activeTab === 'active' ? (
+            activeBookings.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No active bookings</div>
+            ) : (
+              <div className="space-y-4">
+                {activeBookings.map((booking, index) => (
+                  <motion.div
+                    key={booking.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4 mb-2">
+                          <span className="text-2xl font-bold text-primary">#{booking.tokenNumber}</span>
+                          <div>
+                            <p className="font-semibold">{booking.user?.name}</p>
+                            <p className="text-sm text-gray-600">{booking.user?.phone}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span>Party Size: {booking.partySize}</span>
+                          <span>Slot: {booking.slotTime}</span>
+                          <span>Booked: {new Date(booking.createdAt).toLocaleTimeString()}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <span>Party Size: {booking.partySize}</span>
-                        <span>Slot: {booking.slotTime}</span>
-                        <span>Booked: {new Date(booking.createdAt).toLocaleTimeString()}</span>
-                      </div>
+                      
+                      <button
+                        onClick={() => handleComplete(booking.id)}
+                        className="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 flex items-center space-x-2"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                        <span>Complete</span>
+                      </button>
                     </div>
-                    
-                    <button
-                      onClick={() => handleComplete(booking._id)}
-                      className="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 flex items-center space-x-2"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      <span>Complete</span>
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  </motion.div>
+                ))}
+              </div>
+            )
+          ) : (
+            historyBookings.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No historical bookings found</div>
+            ) : (
+               <div className="space-y-4">
+                 {historyBookings.map((booking, index) => (
+                   <motion.div
+                     key={booking.id}
+                     initial={{ opacity: 0, y: 10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: index * 0.05 }}
+                     className={`border rounded-lg p-4 ${booking.status === 'cancelled' || booking.status === 'no-show' ? 'bg-red-50' : 'bg-green-50'}`}
+                   >
+                     <div className="flex justify-between items-center opacity-80">
+                       <div className="flex-1">
+                         <div className="flex items-center space-x-4 mb-1">
+                           <span className="text-lg font-bold">#{booking.tokenNumber}</span>
+                           <p className="font-semibold">{booking.user?.name}</p>
+                         </div>
+                         <div className="text-xs text-gray-600">
+                           <span>Booked: {new Date(booking.createdAt).toLocaleString()}</span>
+                         </div>
+                       </div>
+                       
+                       <div className="flex items-center font-semibold text-sm">
+                         {booking.status === 'completed' && <><CheckCircle className="w-4 h-4 mr-1 text-green-600" /><span className="text-green-600">Completed</span></>}
+                         {booking.status === 'cancelled' && <><XCircle className="w-4 h-4 mr-1 text-red-600" /><span className="text-red-600">Cancelled</span></>}
+                         {booking.status === 'no-show' && <><XCircle className="w-4 h-4 mr-1 text-orange-600" /><span className="text-orange-600">No Show</span></>}
+                       </div>
+                     </div>
+                   </motion.div>
+                 ))}
+               </div>
+            )
           )}
         </div>
       </main>

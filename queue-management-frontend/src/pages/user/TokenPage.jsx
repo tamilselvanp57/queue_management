@@ -15,7 +15,7 @@ const TokenPage = () => {
   const navigate = useNavigate()
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
-  const { queueData } = useQueueSocket(token?.place?._id)
+  const { queueData } = useQueueSocket(token?.place?.id)
 
   useEffect(() => {
     fetchTokenStatus()

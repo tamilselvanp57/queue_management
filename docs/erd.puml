@@ -1,0 +1,92 @@
+@startuml
+skinparam linetype ortho
+skinparam roundcorner 5
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor Black
+}
+
+entity "User" as user {
+  *id : String <<PK>>
+  --
+  *name : String
+  *email : String <<UK>>
+  *password : String
+  *role : String
+  phone : String
+  businessType : String
+  placeId : String <<FK>>
+}
+
+entity "Place" as place {
+  *id : String <<PK>>
+  --
+  *name : String
+  *category : String
+  *region : String
+  *city : String
+  *state : String
+  *address : String
+  *phone : String
+  *latitude : Float
+  *longitude : Float
+  queueLength : Int
+  currentToken : Int
+  avgServiceTime : Int
+  description : String
+  hours : String
+  image : String
+}
+
+entity "Booking" as booking {
+  *id : String <<PK>>
+  --
+  *userId : String <<FK>>
+  *placeId : String <<FK>>
+  *tokenNumber : Int
+  *status : String
+  *createdAt : DateTime
+  slotTime : String
+  partySize : Int
+}
+
+entity "Token" as token {
+  *id : String <<PK>>
+  --
+  *tokenNumber : String <<UK>>
+  *displayNumber : String
+  *userId : String <<FK>>
+  *placeId : String <<FK>>
+  *queuePosition : Int
+  *status : String
+  *joinedAt : DateTime
+  counter : String
+  userLat : Float
+  userLng : Float
+  distanceFromPlace : Float
+  estimatedWaitTime : Int
+}
+
+entity "Notification" as notification {
+  *id : String <<PK>>
+  --
+  *userId : String <<FK>>
+  *type : String
+  *message : String
+  *sentAt : DateTime
+  tokenId : String <<FK>>
+  readAt : DateTime
+  channels : Json
+}
+
+user }|--|| place : "Manages"
+user ||--o{ booking : "Makes"
+user ||--o{ token : "Holds"
+user ||--o{ notification : "Receives"
+
+place ||--o{ booking : "Receives"
+place ||--o{ token : "Tracks"
+
+token |o--o{ notification : "Triggers"
+@enduml
